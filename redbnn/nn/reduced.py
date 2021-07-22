@@ -5,6 +5,7 @@ from redbnn.utils.networks import get_blocks_dict
 import redbnn.bayesian_inference.svi as svi
 import redbnn.bayesian_inference.svi as hmc
 
+
 class redBNN(baseNN):
 
     def __init__(self, architecture, input_size, num_classes, inference, reduction, bayesian_idx):
@@ -29,7 +30,7 @@ class redBNN(baseNN):
 
     def _set_bayesian_weights(self, bayesian_idx):
 
-        print("\nBayesian layer idx =", bayesian_idx)
+        print("\nBayesian idx =", bayesian_idx)
         blocks_dict = get_blocks_dict(self.network, learnable_only=True, mode=self.reduction)
 
         if self.reduction=='blocks':
@@ -62,12 +63,13 @@ class redBNN(baseNN):
         basenet = baseNN(architecture=self.architecture, input_size=self.input_size, num_classes=self.num_classes)
         bayesian_weights = self._initialize_model()
 
+
         basenet.train(dataloaders=dataloaders, num_iters=num_iters, feature_extract=True,
                      use_pretrained=use_pretrained, device=device)
         basenet._set_parameter_requires_grad(basenet.network, feature_extract=True)
+
         self.network = basenet.network
 
-        # device = torch.device(device)
         if self.inference=="svi":
             svi.train(network=self, dataloaders=dataloaders, eval_samples=eval_samples,
                       device=device, num_iters=num_iters, is_inception=is_inception)

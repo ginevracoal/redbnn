@@ -23,7 +23,7 @@ class baseNN(nn.Module):
         self.input_size = input_size
         self.num_classes = num_classes
 
-    def _initialize_model(self, feature_extract, use_pretrained=True):
+    def _initialize_model(self, feature_extract, use_pretrained):
         """
         Loads pretrained models and sets parameters for training.
         Only works on models with fully connected last layer, otherwise code needs to be adapted (e.g. squeezenet)
@@ -32,8 +32,8 @@ class baseNN(nn.Module):
         num_classes = self.num_classes
         input_size = self.input_size
 
-        if architecture == "squeezenet1_1":
-            network = models.squeezenet1_1(pretrained=use_pretrained)
+        if 'squeezenet' in architecture:
+            network = getattr(models, architecture)(pretrained=use_pretrained)
             network = getattr(models, architecture)(pretrained=use_pretrained)
             self._set_parameter_requires_grad(network, feature_extract)
             network.classifier[1] = nn.Conv2d(512, num_classes, kernel_size=(1,1), stride=(1,1))
@@ -48,7 +48,20 @@ class baseNN(nn.Module):
 
             layer_module = last_layer['category']
             new_last_layer = getattr(nn, last_layer['category'])(num_ftrs, num_classes)
-            setattr(network, last_layer['name'], new_last_layer)
+
+            split_layer_name = last_layer['name'].split('.')
+
+            if len(split_layer_name)==1:
+                setattr(network, last_layer['name'], new_last_layer)
+
+            elif len(split_layer_name)==2:
+                block_name, layer_index = split_layer_name
+                setattr(eval('network.'+block_name), layer_index, new_last_layer)
+
+            else:
+                raise NotImplementedError
+
+            print("\nLast layer:", new_last_layer)
 
         self.network = network
         self.n_layers = len(get_blocks_dict(network, mode='layers', learnable_only=False))
@@ -62,7 +75,7 @@ class baseNN(nn.Module):
             for param in model.parameters():
                 param.requires_grad = False
 
-    def _set_params_updates(self, model, feature_extract=False): 
+    def _set_params_updates(self, model, feature_extract): 
         #  Gather the parameters to be optimized/updated in this run. If we are
         #  finetuning we will be updating all parameters. However, if we are
         #  doing feature extract method, we will only update the parameters
@@ -81,15 +94,18 @@ class baseNN(nn.Module):
                     count += param.numel()
         else:
             for name,param in model.named_parameters():
-                print("\t",name)
-                count += param.numel()
+                if param.requires_grad == True:
+                    print("\t",name)
+                    count += param.numel()
                 
-        print(f"Total n. of params = {count}")    
+        print(f"\nTotal n. of params = {count}")    
         n_learnable_layers = len(get_blocks_dict(self, mode="layers", learnable_only=True))
-        print(f"N. layers = {self.n_layers} \nN. learnable layers = {n_learnable_layers}")
+        print(f"n. of layers = {self.n_layers} \nn. of learnable layers = {n_learnable_layers}")
         return params_to_update
 
     def train(self, dataloaders, device, num_iters, feature_extract=True, use_pretrained=True, is_inception=False):
+        print("\n == baseNN training ==")
+
         device = torch.device(device)
         params_to_update = self._initialize_model(feature_extract=feature_extract, use_pretrained=use_pretrained)
 
@@ -117,13 +133,14 @@ class baseNN(nn.Module):
                     model.eval() 
 
                 running_loss = 0.0
-                running_corrects = 0
+                running_corrects = 0.0
 
                 for inputs, labels in dataloaders[phase]:
                     inputs = inputs.to(device)
                     labels = labels.to(device)
 
                     optimizer.zero_grad()
+
                     with torch.set_grad_enabled(phase == 'train'):
 
                         if is_inception and phase == 'train':
@@ -159,7 +176,6 @@ class baseNN(nn.Module):
         print('\nTraining complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
         print('Best val Acc: {:4f}'.format(best_acc))
 
-        # load best model weights
         self.network.load_state_dict(best_model_wts)
         return val_acc_history
 
@@ -216,7 +232,7 @@ class baseNN(nn.Module):
             return activation[key]
 
     def to(self, device):
-        self.network = self.network.to(device)
+        self.network = self.network.to(torch.device(device))
 
     def save(self, filename, savedir):
         filename += "_weights.pt"

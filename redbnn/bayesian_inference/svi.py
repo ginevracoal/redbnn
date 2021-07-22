@@ -45,8 +45,6 @@ def guide(network, x_data, y_data=None):
     lifted_module = pyro.random_module("module", network.network, dists)()
     out = lifted_module(x_data)
 
-    print(out.shape)
-
     # if network.bayesian_idx == network.n_layers-1:
     #     out = nnf.softmax(out, dim=-1)
 
@@ -114,12 +112,12 @@ def train(network, dataloaders, eval_samples, device, num_iters, lr=0.001, is_in
 
 def forward(network, inputs, n_samples, sample_idxs=None, softmax=False):
 
+    old_state_dict = network.network.state_dict()
+
     preds = []  
     for seed in sample_idxs:
         pyro.set_rng_seed(seed)
         guide_trace = poutine.trace(network.guide).get_trace(inputs) 
-
-        print(guide_trace.nodes.keys())
 
         weights = {}
         for key, value in network.network.state_dict().items():
@@ -137,10 +135,7 @@ def forward(network, inputs, n_samples, sample_idxs=None, softmax=False):
         preds.append(basenet_copy.forward(inputs))
 
     preds = torch.stack(preds)
-
-    if torch.all(preds[0,0,:]==preds[1,0,:]):
-        raise ValueError("Same prediction from independent samples.")
-
+    assert ~torch.all(preds[0,0,:]==preds[1,0,:])
     return preds
 
 def save(bayesian_network, path, filename):
