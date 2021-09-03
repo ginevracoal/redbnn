@@ -135,9 +135,6 @@ def forward(redbnn, inputs, n_samples, sample_idxs=None, softmax=True):
         preds.append(out)
 
     preds = torch.stack(preds)
-
-    # check that predictions from independent samples are different
-    # assert ~torch.all(preds[0,0,:]==preds[1,0,:]) 
     return nnf.softmax(preds, dim=-1) if softmax else preds
 
 def save(redbnn, savedir, filename):
@@ -147,7 +144,7 @@ def save(redbnn, savedir, filename):
     param_store.save(os.path.join(savedir, filename+"_weights.pt"))
 
 def load(redbnn, savedir, filename):
-    redbnn.network.load_state_dict(torch.load(os.path.join(savedir, filename+"_weights.pt")))    
+    saved_param_store = torch.load(os.path.join(savedir, filename+"_weights.pt"))
     param_store = pyro.get_param_store()
     param_store.load(os.path.join(savedir, filename+"_weights.pt"))
     for key, value in param_store.items():

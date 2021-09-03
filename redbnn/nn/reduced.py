@@ -127,18 +127,18 @@ class redBNN(baseNN):
         preds = out.mean(0) if expected_out else out
         return nnf.softmax(preds, dim=-1) if softmax else preds
 
-    def save(self, filename, savedir):
+    def save(self, filename, savedir, hmc_samples=None):
         self.to("cpu")
         
         if self.inference=="svi":
             svi.save(self, savedir=savedir, filename=filename)
 
         elif self.inference=="hmc":
-            hmc.save(self, savedir=savedir, filename=filename)
+            hmc.save(self, savedir=savedir, filename=filename, hmc_samples=hmc_samples)
 
         print("\nSaving", os.path.join(savedir, filename))
 
-    def load(self, filename, savedir, *args, **kwargs):
+    def load(self, filename, savedir, hmc_samples=None):
         basenet = baseNN(architecture=self.architecture, input_size=self.input_size, num_classes=self.num_classes)
         self._initialize_model()
 
@@ -146,7 +146,7 @@ class redBNN(baseNN):
             svi.load(self, savedir=savedir, filename=filename)
 
         elif self.inference=="hmc":
-            hmc.load(self, savedir=savedir, filename=filename)
+            hmc.load(self, savedir=savedir, filename=filename, hmc_samples=hmc_samples)
 
         print("\nLoading", os.path.join(savedir, filename))
 
@@ -155,3 +155,5 @@ class redBNN(baseNN):
         Send network to device.
         """
         self.network = self.network.to(device)
+
+

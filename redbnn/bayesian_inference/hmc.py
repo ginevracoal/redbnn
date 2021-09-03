@@ -13,6 +13,7 @@ from pyro import poutine
 from pyro.infer.mcmc import MCMC, HMC, NUTS
 from pyro.distributions import Normal, Categorical
 from collections import OrderedDict
+from redbnn.utils.pickling import save_to_pickle, load_from_pickle
 
 
 def model(redbnn, x_data, y_data):
@@ -71,7 +72,7 @@ def train(redbnn, dataloaders, device, n_samples, warmup, is_inception=False):
                 for key, value in redbnn.network.state_dict().items():
                     weights_dict.update({str(key):value})
 
-                for idx, (param_name, param) in enumerate(redbnn.bayesian_weights.items()):
+                for param_name, param in redbnn.bayesian_weights.items():
                     w = batch_samples['module$$$'+param_name][sample_idx]
                     weights_dict.update({param_name:w})
                     assert w.shape==param.shape
@@ -95,39 +96,44 @@ def forward(redbnn, inputs, n_samples, sample_idxs=None, softmax=True):
         raise ValueError("Too many samples. Max available samples =", len(redbnn.posterior_samples))
 
     preds = []
-    for seed in sample_idxs:
-        net = redbnn.posterior_samples[seed]
+    for sample_idx in sample_idxs:
+        net = redbnn.posterior_samples[sample_idx]
+        net = net.to(inputs.device)
         preds.append(net.forward(inputs))
 
     preds = torch.stack(preds)
-
-    # check that predictions from independent samples are different
-    assert ~torch.all(preds[0,0,:]==preds[1,0,:]) 
     return nnf.softmax(preds, dim=-1) if softmax else preds
     
-def save(redbnn, savedir, filename):
+def save(redbnn, savedir, filename, hmc_samples):
     savedir=os.path.join(savedir, filename+"_weights")
     os.makedirs(savedir, exist_ok=True)  
 
-    print(redbnn.posterior_samples)
+    for sample_idx in range(hmc_samples):
 
-    for idx, weights in enumerate(redbnn.posterior_samples):
-        fullpath=os.path.join(savedir, filename+"_"+str(idx)+".pt")    
-        torch.save(weights.state_dict(), fullpath)
+        weights_dict={}
+        for param_name in redbnn.bayesian_weights.keys():
+            w = redbnn.posterior_samples[sample_idx].state_dict()[param_name]
+            weights_dict.update({param_name:w})
+
+        save_to_pickle(data=weights_dict, path=savedir, filename=filename+"_"+str(sample_idx)+".pt")
 
 def load(redbnn, savedir, filename, hmc_samples):
     savedir=os.path.join(savedir, filename+"_weights")
 
-    redbnn.posterior_samples=[]
-    print(redbnn.posterior_samples)
-    for idx in range(hmc_samples):
-        net_copy = copy.deepcopy(redbnn.basenet)
-        fullpath=os.path.join(savedir, filename+"_"+str(idx)+".pt")    
-        net_copy.load_state_dict(torch.load(fullpath))
-        redbnn.posterior_samples.append(net_copy)  
+    posterior_samples=[]
+ 
+    for sample_idx in range(hmc_samples):
 
-    print("\nLoading: ", os.path.join(path, filename))
-    return redbnn
+        weights_dict = {}
+        for key, value in redbnn.network.state_dict().items():
+            weights_dict.update({str(key):value})
+        weights_dict.update(load_from_pickle(path=savedir, filename=filename+"_"+str(sample_idx)+".pt"))
+
+        net_copy = copy.deepcopy(redbnn.network)
+        net_copy.load_state_dict(weights_dict)
+        posterior_samples.append(net_copy)
+
+    redbnn.posterior_samples = posterior_samples
 
 def to(device):
     for k, v in pyro.get_param_store().items():
