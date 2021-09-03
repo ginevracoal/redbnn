@@ -135,7 +135,7 @@ class baseNN(nn.Module):
                 running_loss = 0.0
                 running_corrects = 0.0
 
-                for inputs, labels in dataloaders[phase]:
+                for inputs, labels in tqdm(dataloaders[phase]):
                     inputs = inputs.to(device)
                     labels = labels.to(device)
 
@@ -243,6 +243,8 @@ class baseNN(nn.Module):
 
     def load(self, filename, savedir):
         filename += "_weights.pt"
+
+        self._initialize_model(feature_extract=False, use_pretrained=True)
         self.network.load_state_dict(torch.load(os.path.join(savedir, filename)))
         print("\nLoading", os.path.join(savedir, filename))
 

@@ -1,6 +1,7 @@
 import os
 import time
 import copy 
+from tqdm import tqdm
 
 import torch
 import torch.nn as nn
@@ -9,189 +10,124 @@ softplus = torch.nn.Softplus()
 
 import pyro
 from pyro import poutine
-from pyro.infer import SVI, Trace_ELBO, TraceMeanField_ELBO
+from pyro.infer.mcmc import MCMC, HMC, NUTS
 from pyro.distributions import Normal, Categorical
+from collections import OrderedDict
 
-DEBUG=False  
 
-def model(bayesian_network, x_data, y_data):
+def model(redbnn, x_data, y_data):
 
     priors = {}
-    for key, value in bayesian_network.bayesian_layers_dict.items():
-        loc = torch.zeros_like(value)
-        scale = torch.ones_like(value)
-        prior = Normal(loc=loc, scale=scale)
-        priors.update({str(key):prior})
+    for key, value in redbnn.network.named_parameters():
+        if key in redbnn.bayesian_weights.keys():
 
-    lifted_module = pyro.random_module("module", bayesian_network.bayesian_subnetwork, priors)()   
+            loc = torch.zeros_like(value)
+            scale = torch.ones_like(value)
+            prior = Normal(loc=loc, scale=scale)
+            priors.update({str(key):prior})
+
+    lifted_module = pyro.random_module("module", redbnn.network, priors)()   
 
     with pyro.plate("data", len(x_data)):
         out = lifted_module(x_data)
+        # out = nnf.log_softmax(out, dim=-1)
+        obs = pyro.sample("obs", Categorical(logits=out), obs=y_data)
 
-        if bayesian_network.bayesian_layers_idxs[-1]==bayesian_network.n_layers-1:
-            obs = pyro.sample("obs", Categorical(logits=out), obs=y_data)
-        else:
-            obs = pyro.sample("obs", Normal(out, 1.), obs=y_data)
+def train(redbnn, dataloaders, device, n_samples, warmup, is_inception=False):
+    print("\n == HMC ==")
+    
+    device = torch.device(device)
+    redbnn.to(device)
 
-        if DEBUG:
-            print("obs", obs.shape)
+    pyro.clear_param_store()    
+    num_batches = len(dataloaders['train'])
+    n_batch_samples = int(n_samples/num_batches)+1
+    print("\nn_batches =",num_batches,"\tbatch_samples =", n_batch_samples)
 
+    kernel = NUTS(redbnn.model, adapt_step_size=True)
+    mcmc = MCMC(kernel=kernel, num_samples=n_batch_samples, warmup_steps=warmup, num_chains=1)
 
-def guide(bayesian_network, x_data, y_data=None):
+    state_dict_keys = list(redbnn.network.state_dict().keys())
+    start = time.time()
 
-    dists = {}
-    for key, value in bayesian_network.bayesian_layers_dict.items():
-        loc = pyro.param(str(f"{key}_loc"), torch.randn_like(value)) 
-        scale = pyro.param(str(f"{key}_scale"), torch.randn_like(value))
-        distr = Normal(loc=loc, scale=softplus(scale))
-        dists.update({str(key):distr})
+    # print(pyro.get_param_store().get_all_param_names())
 
-    if DEBUG:
-        print("\nguide dists:", dists)
+    posterior_samples=[]
+    for phase in ['train']:
+        # redbnn.network.eval()  
 
-    lifted_module = pyro.random_module("module", bayesian_network.bayesian_subnetwork, dists)()
+        for inputs, labels in tqdm(dataloaders[phase]):
+            inputs, labels = inputs.to(device), labels.to(device)
 
-    out = lifted_module(x_data)
-    preds = nnf.softmax(out, dim=-1)
-    return preds
+            # with torch.set_grad_enabled(phase == 'train'):
+            mcmc_run = mcmc.run(inputs, labels)
+            batch_samples = mcmc.get_samples(n_batch_samples)
 
+            for sample_idx in range(n_batch_samples):
 
-def train(bayesian_network, dataloaders, eval_samples, device, num_iters, is_inception=False):
-    print("\n == SVI training ==")
-    pyro.clear_param_store()
-    bayesian_network.to(device)
+                net_copy = copy.deepcopy(redbnn.network)
 
-    elbo = TraceMeanField_ELBO()
-    optimizer = pyro.optim.Adam({"lr":0.001})
-    svi = SVI(bayesian_network.model, bayesian_network.guide, optimizer, loss=elbo)
+                weights_dict = {}
+                for key, value in redbnn.network.state_dict().items():
+                    weights_dict.update({str(key):value})
 
-    val_acc_history = []
-    since = time.time()
+                for idx, (param_name, param) in enumerate(redbnn.bayesian_weights.items()):
+                    w = batch_samples['module$$$'+param_name][sample_idx]
+                    weights_dict.update({param_name:w})
+                    assert w.shape==param.shape
 
-    for epoch in range(num_iters):
+                net_copy.load_state_dict(weights_dict)
+                posterior_samples.append(net_copy)
 
-        loss=0.0
-
-        print('Epoch {}/{}'.format(epoch, num_iters - 1))
-        print('-' * 10)
-
-        for phase in ['train', 'val']:
-            
-            running_loss = 0.0
-            running_corrects = 0
-
-            for inputs, labels in dataloaders[phase]:
-
-                inputs, labels  = inputs.to(device), labels.to(device)
-
-                lidx = bayesian_network.bayesian_layers_idxs[0]
-                ridx = bayesian_network.bayesian_layers_idxs[-1]
-                bay_inp = bayesian_network.get_activation(x=inputs, layer_idx=lidx-1).to(device)
-
-                if ridx==bayesian_network.n_layers-1:
-                    bay_out = labels
-                else:
-                    bay_out = bayesian_network.get_activation(x=inputs, layer_idx=ridx).to(device)
-
-                if DEBUG:
-                    print("lidx=", lidx, " ridx=", ridx)
-                    print("bay_inp", bay_inp.shape, " bay_out", bay_out.shape)
-
-                with torch.set_grad_enabled(phase == 'train'):
-
-                    loss = svi.step(x_data=bay_inp.squeeze(), y_data=bay_out.squeeze())
-                    out = bayesian_network.forward(inputs, n_samples=eval_samples)
-                    preds = out.argmax(dim=-1)
-                    
-                running_loss += loss * bay_inp.size(0)
-
-                if DEBUG:
-                    print("out", out.shape, "preds", preds.shape, "labels", labels.shape)
-
-                running_corrects += torch.sum(preds == labels.data)
-
-            epoch_loss = running_loss / len(dataloaders[phase].dataset)
-            epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)
-
-            print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase, epoch_loss, epoch_acc), end="\t")
-
-            if phase == 'val':
-                print()
-
-            val_acc_history.append(epoch_acc)
-
-        print()
+    redbnn.posterior_samples = posterior_samples
 
     print("\nLearned variational params:\n")
-    print(pyro.get_param_store().get_all_param_names())
+    print(list(batch_samples.keys()))
 
-    time_elapsed = time.time() - since
+    time_elapsed = time.time() - start
     print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
-    return val_acc_history
+    return posterior_samples
 
-def forward(bayesian_network, inputs, n_samples, sample_idxs=None):
 
-    if DEBUG:
-        print("\nn_samples", n_samples)
+def forward(redbnn, inputs, n_samples, sample_idxs=None, softmax=True):
 
-    bay_inp = bayesian_network.get_activation(x=inputs, layer_idx=bayesian_network.bayesian_layers_idxs[0]-1)
-    guide = bayesian_network.guide
+    if n_samples>len(redbnn.posterior_samples):
+        raise ValueError("Too many samples. Max available samples =", len(redbnn.posterior_samples))
 
-    preds = []  
-
+    preds = []
     for seed in sample_idxs:
-        pyro.set_rng_seed(seed)
-        guide_trace = poutine.trace(guide).get_trace(bay_inp) 
-
-        weights = {}
-        for key, value in bayesian_network.network.state_dict().items():
-            weights.update({str(key):value})
-
-        for param_idx, (param_name, param) in enumerate(bayesian_network.bayesian_subnetwork.state_dict().items()):
-            loc = guide_trace.nodes["module$$$"+param_name]["value"]
-            scale = guide_trace.nodes["module$$$"+param_name]["value"]
-            w = Normal(loc=loc, scale=softplus(scale)).sample()
-
-            key = list(bayesian_network.bayesian_layers_dict.keys())[param_idx]
-            weights.update({key:w})
-
-            if DEBUG:
-                print("\nupdate: ", key, param_name)
-
-        basenet_copy = copy.deepcopy(bayesian_network.network)
-        basenet_copy.load_state_dict(weigshts)
-        preds.append(basenet_copy.forward(inputs))
+        net = redbnn.posterior_samples[seed]
+        preds.append(net.forward(inputs))
 
     preds = torch.stack(preds)
 
-    if torch.all(preds[0,0,:]==preds[1,0,:]):
-        # print(preds.shape)
-        # print(preds[:,0,:])
-        raise ValueError("Same prediction from independent samples.")
-
-    if DEBUG:   
-        print("fwd out", preds.shape)
-
-    return preds
+    # check that predictions from independent samples are different
+    assert ~torch.all(preds[0,0,:]==preds[1,0,:]) 
+    return nnf.softmax(preds, dim=-1) if softmax else preds
     
-def set_params_updates():
-    for weights_name in pyro.get_param_store():
-        if weights_name not in ["w_mu","w_sigma","b_mu","b_sigma"]:
-            pyro.get_param_store()[weights_name].requires_grad=False
+def save(redbnn, savedir, filename):
+    savedir=os.path.join(savedir, filename+"_weights")
+    os.makedirs(savedir, exist_ok=True)  
 
-def save(bayesian_network, path, filename):
-    os.makedirs(path, exist_ok=True)
+    print(redbnn.posterior_samples)
 
-    param_store = pyro.get_param_store()
-    param_store.save(os.path.join(path, filename+".pt"))
+    for idx, weights in enumerate(redbnn.posterior_samples):
+        fullpath=os.path.join(savedir, filename+"_"+str(idx)+".pt")    
+        torch.save(weights.state_dict(), fullpath)
 
-def load(bayesian_network, path, filename):
-    param_store = pyro.get_param_store()
-    param_store.load(os.path.join(path, filename+".pt"))
-    for key, value in param_store.items():
-        param_store.replace_param(key, value, value)
-    
-    print("\nLoading: ", os.path.join(path, filename+".pt"))
+def load(redbnn, savedir, filename, hmc_samples):
+    savedir=os.path.join(savedir, filename+"_weights")
+
+    redbnn.posterior_samples=[]
+    print(redbnn.posterior_samples)
+    for idx in range(hmc_samples):
+        net_copy = copy.deepcopy(redbnn.basenet)
+        fullpath=os.path.join(savedir, filename+"_"+str(idx)+".pt")    
+        net_copy.load_state_dict(torch.load(fullpath))
+        redbnn.posterior_samples.append(net_copy)  
+
+    print("\nLoading: ", os.path.join(path, filename))
+    return redbnn
 
 def to(device):
     for k, v in pyro.get_param_store().items():

@@ -23,12 +23,6 @@ def get_blocks_dict(network, mode, learnable_only=True):
 			if layer.__class__.__name__ in ["Conv2d", "Linear"]:
 				learnable_layers_idxs.append(layer_idx)
 
-			# attribute_name = name
-			# for inner_block_name, inner_block in list(block.named_children()):
-			# 	print(inner_block_name)
-			# 	print(str(attribute_name+"['"+inner_block_name+"']"))
-			# 	attribute_name = str(attribute_name+"['"+inner_block_name+"']")
-
 			layers_dict[layer_idx] = {'name':name, 'layer':layer, 'category':layer.__class__.__name__}
 			layer_idx += 1
 
@@ -41,7 +35,7 @@ def get_blocks_dict(network, mode, learnable_only=True):
 
 	for block_name, block in list(network.named_children()):
 
-		blocks_dict[layer_idx] = {'name':block_name, 'block':block}#, 'attribute_name':attribute_name}
+		blocks_dict[layer_idx] = {'name':block_name, 'block':block}
 		layer_idx, learnable_layers_idxs = get_inner_blocks(name=block_name, block=block, 
 															layers_dict=layers_dict, layer_idx=layer_idx, 
 															learnable_layers_idxs=learnable_layers_idxs)
@@ -60,11 +54,9 @@ def get_blocks_dict(network, mode, learnable_only=True):
 		blocks_dict = {layer_idx: blocks_dict[layer_idx] for layer_idx in sorted_idxs}
 
 	if mode=="layers":
-		# print("\nLayers idxs:", list(layers_dict.keys()))
 		return layers_dict
 
 	elif mode=="blocks":
-		# print("\nBlocks idxs:", list(blocks_dict.keys()))
 		return blocks_dict
 
 def get_first_layer(block): 

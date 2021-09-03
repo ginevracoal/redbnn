@@ -3,7 +3,7 @@ from redbnn.nn.base import baseNN
 from redbnn.utils.seeding import set_seed
 from redbnn.utils.networks import get_blocks_dict
 import redbnn.bayesian_inference.svi as svi
-import redbnn.bayesian_inference.svi as hmc
+import redbnn.bayesian_inference.hmc as hmc
 
 
 class redBNN(baseNN):
@@ -61,8 +61,7 @@ class redBNN(baseNN):
         is_inception: flag for Inception v3 model
         """
         basenet = baseNN(architecture=self.architecture, input_size=self.input_size, num_classes=self.num_classes)
-        bayesian_weights = self._initialize_model()
-
+        self._initialize_model()
 
         basenet.train(dataloaders=dataloaders, num_iters=num_iters, feature_extract=True,
                      use_pretrained=use_pretrained, device=device)
@@ -70,13 +69,21 @@ class redBNN(baseNN):
 
         self.network = basenet.network
 
+        ### new
+        for key, param in self.network.named_parameters():
+            if key in self.bayesian_weights.keys():
+                param.requires_grad = True
+            else:
+                param.requires_grad = False
+        ###########
+
         if self.inference=="svi":
-            svi.train(network=self, dataloaders=dataloaders, eval_samples=eval_samples,
-                      device=device, num_iters=num_iters, is_inception=is_inception)
+            svi.train(redbnn=self, dataloaders=dataloaders,
+                      device=device, num_iters=svi_iters, is_inception=is_inception)
 
         elif self.inference=="hmc":
-            hmc.train(network=self, dataloaders=dataloaders, eval_samples=eval_samples,
-                      device=device, n_samples=n_samples, warmup=warmup, is_inception=is_inception)
+            hmc.train(redbnn=self, dataloaders=dataloaders,
+                      device=device, n_samples=hmc_samples, warmup=hmc_warmup, is_inception=is_inception)
 
         else:
             raise NotImplementedError
@@ -87,10 +94,10 @@ class redBNN(baseNN):
     def model(self, x_data, y_data):
 
         if self.inference=="svi":
-            return svi.model(network=self, x_data=x_data, y_data=y_data)
+            return svi.model(redbnn=self, x_data=x_data, y_data=y_data)
 
         elif self.inference=="hmc":
-            return hmc.model(network=self, x_data=x_data, y_data=y_data)
+            return hmc.model(redbnn=self, x_data=x_data, y_data=y_data)
 
         else:
             raise NotImplementedError
@@ -98,9 +105,9 @@ class redBNN(baseNN):
     def guide(self, x_data, y_data=None):
 
         if self.inference=="svi":
-            return svi.guide(network=self, x_data=x_data, y_data=y_data)
+            return svi.guide(redbnn=self, x_data=x_data, y_data=y_data)
 
-    def forward(self, inputs, n_samples=5, sample_idxs=None, expected_out=True, softmax=False):
+    def forward(self, inputs, n_samples=10, sample_idxs=None, expected_out=True, softmax=False):
 
         if sample_idxs is  None:
             sample_idxs = list(range(n_samples))
@@ -109,10 +116,10 @@ class redBNN(baseNN):
                 raise ValueError("The number of sample idxs should match the number of posterior samples.")
 
         if self.inference=="svi":
-            out = svi.forward(network=self, inputs=inputs, n_samples=n_samples, sample_idxs=sample_idxs)
+            out = svi.forward(redbnn=self, inputs=inputs, n_samples=n_samples, sample_idxs=sample_idxs)
 
         elif self.inference=="hmc":
-            out = hmc.forward(network=self, inputs=inputs, n_samples=n_samples, sample_idxs=sample_idxs)
+            out = hmc.forward(redbnn=self, inputs=inputs, n_samples=n_samples, sample_idxs=sample_idxs)
               
         else:
             raise NotImplementedError
@@ -122,26 +129,24 @@ class redBNN(baseNN):
 
     def save(self, filename, savedir):
         self.to("cpu")
-
-        filename += "_weights"
         
         if self.inference=="svi":
-            svi.save(self, savedir, filename)
+            svi.save(self, savedir=savedir, filename=filename)
 
         elif self.inference=="hmc":
-            hmc.save(self, savedir, filename)
+            hmc.save(self, savedir=savedir, filename=filename)
 
         print("\nSaving", os.path.join(savedir, filename))
 
     def load(self, filename, savedir, *args, **kwargs):
-
-        filename += "_weights"
+        basenet = baseNN(architecture=self.architecture, input_size=self.input_size, num_classes=self.num_classes)
+        self._initialize_model()
 
         if self.inference=="svi":
-            svi.load(bayesian_network=self, path=savedir, filename=filename)
+            svi.load(self, savedir=savedir, filename=filename)
 
         elif self.inference=="hmc":
-            hmc.load(bayesian_network=self, path=savedir, filename=filename)
+            hmc.load(self, savedir=savedir, filename=filename)
 
         print("\nLoading", os.path.join(savedir, filename))
 
@@ -150,7 +155,3 @@ class redBNN(baseNN):
         Send network to device.
         """
         self.network = self.network.to(device)
-        # self.bayesian_layer = self.bayesian_layer.to(device)
-
-        # if self.inference=="svi":
-        #     svi.to(device)
