@@ -29,7 +29,6 @@ def model(redbnn, x_data, y_data):
 
     with pyro.plate("data", len(x_data)):
         out = lifted_module(x_data)
-        # out = nnf.log_softmax(out, dim=-1)
         obs = pyro.sample("obs", Categorical(logits=out), obs=y_data)
 
 def guide(redbnn, x_data, y_data=None):
@@ -71,7 +70,6 @@ def train(redbnn, dataloaders, device, num_iters, lr=0.01, is_inception=False):
         print('-' * 10)
 
         for phase in ['train','val']:
-            # redbnn.network.eval()
 
             running_loss = 0.0
             running_corrects = 0
@@ -79,15 +77,12 @@ def train(redbnn, dataloaders, device, num_iters, lr=0.01, is_inception=False):
             for inputs, labels in tqdm(dataloaders[phase]):
                 inputs, labels  = inputs.to(device), labels.to(device)
 
-                # with torch.set_grad_enabled(phase == 'train'):
                 loss = svi.step(x_data=inputs, y_data=labels)
                 out = redbnn.forward(inputs, n_samples=10)
                 preds = out.argmax(dim=-1)
                     
                 running_loss += loss * inputs.size(0)
                 running_corrects += torch.sum(preds == labels.data)
-
-                # print(redbnn.state_dict()['layer1.0.conv1.weight'][0,0])
 
             epoch_loss = running_loss / len(dataloaders[phase].dataset)
             epoch_acc = running_corrects.double() / len(dataloaders[phase].dataset)

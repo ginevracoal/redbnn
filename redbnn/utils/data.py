@@ -91,4 +91,4 @@ def load_data(dataset_name, data_dir, phases=['train','val','test'], batch_size=
         print(phase, "dataset length =", len(datasets_dict[phase]), end="\t")
 
     print()
-    return dataloaders_dict, img_size, num_classes
+    return dataloaders_dict, num_classes

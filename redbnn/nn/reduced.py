@@ -8,9 +8,9 @@ import redbnn.bayesian_inference.hmc as hmc
 
 class redBNN(baseNN):
 
-    def __init__(self, architecture, input_size, num_classes, inference, reduction, bayesian_idx):
+    def __init__(self, architecture, num_classes, inference, reduction, bayesian_idx):
 
-        super(redBNN, self).__init__(architecture=architecture, input_size=input_size, num_classes=num_classes)
+        super(redBNN, self).__init__(architecture=architecture, num_classes=num_classes)
         self.inference = inference
         self.reduction = reduction
         self.bayesian_idx = bayesian_idx
@@ -60,7 +60,7 @@ class redBNN(baseNN):
         hmc_warmup:
         is_inception: flag for Inception v3 model
         """
-        basenet = baseNN(architecture=self.architecture, input_size=self.input_size, num_classes=self.num_classes)
+        basenet = baseNN(architecture=self.architecture, num_classes=self.num_classes)
         self._initialize_model()
 
         basenet.train(dataloaders=dataloaders, num_iters=num_iters, feature_extract=True,
@@ -139,7 +139,7 @@ class redBNN(baseNN):
         print("\nSaving", os.path.join(savedir, filename))
 
     def load(self, filename, savedir, hmc_samples=None):
-        basenet = baseNN(architecture=self.architecture, input_size=self.input_size, num_classes=self.num_classes)
+        basenet = baseNN(architecture=self.architecture, num_classes=self.num_classes)
         self._initialize_model()
 
         if self.inference=="svi":

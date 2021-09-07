@@ -1,3 +1,11 @@
+"""
+Loads an architecture from torchvision library and trains a deterministic Neural Network (baseNN) or a r
+educed Bayesian Neural Network (redBNN) using Stochastic Variational Inference (SVI) or Hamiltonian Monte Carlo (HMC). 
+redBNN computes a MAP estimate and then performs Bayesian inference on a chosen layer (--reduction=layers) or block 
+(--reduction=blocks). 
+"""
+
+
 import torch
 from argparse import ArgumentParser
 
@@ -25,13 +33,13 @@ parser.add_argument("--hmc_warmup", type=int, default=100, help="Number of warmu
 parser.add_argument("--device", type=str, default="cuda", help="Choose 'cuda' or 'cpu'.")
 args = parser.parse_args()
 
-dataloaders, input_size, num_classes = load_data(dataset_name=args.dataset, 
+dataloaders, num_classes = load_data(dataset_name=args.dataset, 
                                                  data_dir='data/imagenette2-320',
                                                  subset_size=args.n_inputs)
 
 if args.model=='baseNN':
 
-    model = baseNN(architecture=args.architecture, input_size=input_size, num_classes=num_classes)
+    model = baseNN(architecture=args.architecture, num_classes=num_classes)
 
     model.train(dataloaders=dataloaders, num_iters=args.n_iters, device=args.device)
     model.save(filename='baseNN', savedir='data/trained_models/')
@@ -39,12 +47,15 @@ if args.model=='baseNN':
 
 elif args.model=='redBNN':
 
-    model = redBNN(architecture=args.architecture, input_size=input_size, num_classes=num_classes, 
+    if args.inference=='hmc':
+        assert args.n_samples <= args.hmc_samples
+
+    model = redBNN(architecture=args.architecture, num_classes=num_classes, 
                     inference=args.inference, reduction=args.reduction, bayesian_idx=args.bayesian_idx)
     model.train(dataloaders=dataloaders, num_iters=args.n_iters, device=args.device, 
                 eval_samples=1, svi_iters=args.svi_iters, 
                 hmc_samples=args.hmc_samples, hmc_warmup=args.hmc_warmup)
-    model.save(filename='redBNN_'+str(args.inference), savedir='data/trained_models/')
+    model.save(filename='redBNN_'+str(args.inference), savedir='data/trained_models/', hmc_samples=args.hmc_samples)
     model.evaluate(dataloaders['test'], device=args.device, n_samples=args.n_samples)
 
 else:

@@ -44,7 +44,6 @@ class SubNetwork(nn.Module):
         elif reduction == "blocks":
 
             blocks_dict = get_blocks_dict(original_model, mode="blocks", learnable_only=False)
-            # if end_layer_idx==original_model.n_layers:
 
             if start_layer_idx not in blocks_dict.keys():
                 raise AttributeError("Wrong block idx.")
@@ -58,11 +57,6 @@ class SubNetwork(nn.Module):
         else:
             raise NotImplementedError
 
-        # print(start_layer_idx, end_layer_idx, self)
-        # exit()
-            # print(torch.all(torch.eq(self.state_dict()['classifier.0.weight'], 
-            #              original_model.state_dict()['network.classifier.6.weight'])))        
-
         return self
 
     def update_weights(self, bayesian_network, bayesian_input, sample_idx):
@@ -70,9 +64,6 @@ class SubNetwork(nn.Module):
 
         if self.inference == "svi":
             guide_trace = poutine.trace(bayesian_network.guide).get_trace(bayesian_input) 
-            
-            # print("\n", self.state_dict().keys())
-            # print("\n", bayesian_network.bayesian_layers_dict.keys())
 
             weights = {}
             for param_name, param in self.state_dict().items():
@@ -101,8 +92,6 @@ class SubNetwork(nn.Module):
 
             out_list=[]
             for idx in sample_idxs:
-
-                # print("subnetwork sample idx", idx)
 
                 sampled_subnetwork = self.update_weights(bayesian_network=bayesian_network, 
                                                          bayesian_input=x, sample_idx=idx)

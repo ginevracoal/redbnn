@@ -1,3 +1,6 @@
+"""
+Unittest for training.py
+"""
 import copy
 import pyro
 import torch
@@ -10,12 +13,12 @@ from redbnn.nn.reduced import redBNN
 from redbnn.utils.data import load_data
 from redbnn.utils.pickling import load_from_pickle
 
-dataloaders, input_size, num_classes = load_data(dataset_name='imagenette', data_dir='data/imagenette2-320',
+dataloaders, num_classes = load_data(dataset_name='imagenette', data_dir='data/imagenette2-320',
                                                  subset_size=10)
 
 filename = 'unittest'
 architecture = 'resnet18'
-savedir = 'data/'
+savedir = 'data/trained_models/unittest/'
 device = 'cuda'
 
 
@@ -23,7 +26,7 @@ class TestredBNN(unittest.TestCase):
 
     def test_base_training(self):
 
-        model = baseNN(architecture='resnet18', input_size=input_size, num_classes=num_classes)
+        model = baseNN(architecture='resnet18', num_classes=num_classes)
         params_to_update = model._initialize_model(feature_extract=True, use_pretrained=True)
         old_state_dict = model.network.to(device).state_dict()
 
@@ -33,32 +36,32 @@ class TestredBNN(unittest.TestCase):
 
     def test_save_load_baseNN(self):
 
-        model = baseNN(architecture=architecture, input_size=input_size, num_classes=num_classes)
+        model = baseNN(architecture=architecture, num_classes=num_classes)
         model._initialize_model(feature_extract=True, use_pretrained=True)
         model.evaluate(dataloaders['test'], device=device)
-        model.save(filename=filename, savedir='data/trained_models/unittest/')
+        model.save(filename=filename, savedir=savedir)
 
         model._initialize_model(feature_extract=True, use_pretrained=True)
-        model.load(filename=filename, savedir='data/trained_models/unittest/')
+        model.load(filename=filename, savedir=savedir)
         model.evaluate(dataloaders['test'], device=device)
 
     def test_save_load_redBNN(self):
 
         for inference in ['svi', 'hmc']:
 
-            model = redBNN(architecture=architecture, input_size=input_size, num_classes=num_classes, 
+            model = redBNN(architecture=architecture, num_classes=num_classes, 
                         inference=inference, reduction='layers', bayesian_idx=4)        
             model._initialize_model()
             model.train(dataloaders=dataloaders, num_iters=2, device=device, 
                         eval_samples=1, svi_iters=2, hmc_samples=2, hmc_warmup=5)
 
             model.evaluate(dataloaders['test'], device=device, n_samples=2)
-            model.save(filename='redBNN_'+str(inference), savedir='data/trained_models/unittest/', hmc_samples=2)
+            model.save(filename='redBNN_'+str(inference), savedir=savedir, hmc_samples=2)
 
-            model = redBNN(architecture=architecture, input_size=input_size, num_classes=num_classes, 
+            model = redBNN(architecture=architecture, num_classes=num_classes, 
                         inference=inference, reduction='layers', bayesian_idx=4) 
             model._initialize_model()
-            model.load(filename='redBNN_'+str(inference), savedir='data/trained_models/unittest/', hmc_samples=2)
+            model.load(filename='redBNN_'+str(inference), savedir=savedir, hmc_samples=2)
             model.evaluate(dataloaders['test'], device=device, n_samples=2)
 
     def test_posterior_samples_svi_blocks(self):
@@ -68,7 +71,7 @@ class TestredBNN(unittest.TestCase):
         import torch.nn.functional as nnf
         softplus = torch.nn.Softplus()
 
-        network = redBNN(architecture=architecture, input_size=input_size, num_classes=num_classes, 
+        network = redBNN(architecture=architecture, num_classes=num_classes, 
                     inference='svi', reduction='blocks', bayesian_idx=4)
         network.train(dataloaders=dataloaders, num_iters=2, device=device, eval_samples=3, svi_iters=2)
 
@@ -114,7 +117,7 @@ class TestredBNN(unittest.TestCase):
         import torch.nn.functional as nnf
         softplus = torch.nn.Softplus()
 
-        network = redBNN(architecture=architecture, input_size=input_size, num_classes=num_classes, 
+        network = redBNN(architecture=architecture, num_classes=num_classes, 
                     inference='svi', reduction='layers', bayesian_idx=4)
         network.train(dataloaders=dataloaders, num_iters=2, device=device, eval_samples=3, svi_iters=2)
 
@@ -160,7 +163,7 @@ class TestredBNN(unittest.TestCase):
         import torch.nn.functional as nnf
         softplus = torch.nn.Softplus()
 
-        network = redBNN(architecture=architecture, input_size=input_size, num_classes=num_classes, 
+        network = redBNN(architecture=architecture, num_classes=num_classes, 
                     inference='hmc', reduction='blocks', bayesian_idx=4)
         network.train(dataloaders=dataloaders, num_iters=2, device=device, eval_samples=3,  
                         hmc_samples=3, hmc_warmup=5)
@@ -192,7 +195,7 @@ class TestredBNN(unittest.TestCase):
         import torch.nn.functional as nnf
         softplus = torch.nn.Softplus()
 
-        network = redBNN(architecture=architecture, input_size=input_size, num_classes=num_classes, 
+        network = redBNN(architecture=architecture, num_classes=num_classes, 
                     inference='hmc', reduction='layers', bayesian_idx=4)
         network.train(dataloaders=dataloaders, num_iters=2, device=device, eval_samples=3, 
                       hmc_samples=3, hmc_warmup=5)

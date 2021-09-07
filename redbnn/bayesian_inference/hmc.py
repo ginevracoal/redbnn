@@ -31,7 +31,6 @@ def model(redbnn, x_data, y_data):
 
     with pyro.plate("data", len(x_data)):
         out = lifted_module(x_data)
-        # out = nnf.log_softmax(out, dim=-1)
         obs = pyro.sample("obs", Categorical(logits=out), obs=y_data)
 
 def train(redbnn, dataloaders, device, n_samples, warmup, is_inception=False):
@@ -51,16 +50,12 @@ def train(redbnn, dataloaders, device, n_samples, warmup, is_inception=False):
     state_dict_keys = list(redbnn.network.state_dict().keys())
     start = time.time()
 
-    # print(pyro.get_param_store().get_all_param_names())
-
     posterior_samples=[]
     for phase in ['train']:
-        # redbnn.network.eval()  
 
         for inputs, labels in tqdm(dataloaders[phase]):
             inputs, labels = inputs.to(device), labels.to(device)
 
-            # with torch.set_grad_enabled(phase == 'train'):
             mcmc_run = mcmc.run(inputs, labels)
             batch_samples = mcmc.get_samples(n_batch_samples)
 
@@ -89,7 +84,6 @@ def train(redbnn, dataloaders, device, n_samples, warmup, is_inception=False):
     print('Training complete in {:.0f}m {:.0f}s'.format(time_elapsed // 60, time_elapsed % 60))
     return posterior_samples
 
-
 def forward(redbnn, inputs, n_samples, sample_idxs=None, softmax=True):
 
     if n_samples>len(redbnn.posterior_samples):
@@ -106,8 +100,9 @@ def forward(redbnn, inputs, n_samples, sample_idxs=None, softmax=True):
     
 def save(redbnn, savedir, filename, hmc_samples):
     savedir=os.path.join(savedir, filename+"_weights")
-    os.makedirs(savedir, exist_ok=True)  
+    os.makedirs(savedir, exist_ok=True)
 
+    print(hmc_samples)
     for sample_idx in range(hmc_samples):
 
         weights_dict={}
@@ -115,7 +110,7 @@ def save(redbnn, savedir, filename, hmc_samples):
             w = redbnn.posterior_samples[sample_idx].state_dict()[param_name]
             weights_dict.update({param_name:w})
 
-        save_to_pickle(data=weights_dict, path=savedir, filename=filename+"_"+str(sample_idx)+".pt")
+        save_to_pickle(data=weights_dict, path=savedir, filename=filename+"_"+str(sample_idx))
 
 def load(redbnn, savedir, filename, hmc_samples):
     savedir=os.path.join(savedir, filename+"_weights")
@@ -127,7 +122,7 @@ def load(redbnn, savedir, filename, hmc_samples):
         weights_dict = {}
         for key, value in redbnn.network.state_dict().items():
             weights_dict.update({str(key):value})
-        weights_dict.update(load_from_pickle(path=savedir, filename=filename+"_"+str(sample_idx)+".pt"))
+        weights_dict.update(load_from_pickle(path=savedir, filename=filename+"_"+str(sample_idx)))
 
         net_copy = copy.deepcopy(redbnn.network)
         net_copy.load_state_dict(weights_dict)
