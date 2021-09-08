@@ -8,13 +8,31 @@ from utils.networks import *
 softplus = torch.nn.Softplus()
 
 class SubNetwork(nn.Module):
+    """ Subset of a Neural Network architecture, given start and end layers idxs.
+    """
 
     def __init__(self, architecture):
         super(SubNetwork, self).__init__()
+        """
+        Args:
+            architecture (str): Name of any torchvision architecture.            
+
+        """
         self.architecture = architecture
 
     def initialize_model(self, original_model, reduction, start_layer_idx, end_layer_idx):
-        """ Get subnetwork from start_layer_idx to end_layer_idx (both idxs included). 
+        """ Build subnetwork architecture from start_layer_idx to end_layer_idx (both idxs included) 
+        of the original model. 
+
+        Args:
+            original_model (torchvision.models)
+            reduction (str): Reduction method can be either `layers` or `blocks` depending on the desired structure.
+            start_layer_idx (int): Index of the first layer in the subnetwork.
+            end_layer_idx (int): Index of the last layer in the subnetwork.
+
+        Returns:
+            self
+            
         """
         if hasattr(original_model, 'inference'):
             self.inference = original_model.inference

@@ -7,18 +7,34 @@ import redbnn.bayesian_inference.hmc as hmc
 
 
 class redBNN(baseNN):
+    """ Reduced BNN is a Neural Network classifier with a single Bayesian block or a single Bayesian Layer, 
+    depending on the chosen reduction method. """
 
     def __init__(self, architecture, num_classes, inference, reduction, bayesian_idx):
+        """
+        Args:
+            architecture (str): Name of any torchvision architecture.            
+            num_classes (int): Number of classes in the classification problem.
+            inference (str): Bayesian inference method.    
+            reduction (str): Reduction method can be either `layers` or `blocks` depending on the desired structure.
+            bayesian_idx (int): Index for the Bayesian layer or block in the architecture.
 
+        """
         super(redBNN, self).__init__(architecture=architecture, num_classes=num_classes)
         self.inference = inference
         self.reduction = reduction
         self.bayesian_idx = bayesian_idx
 
     def _initialize_model(self):
-        """
-        Load pretrained models, set parameters for training and specify last layer weights 
-        as the only ones that need to be inferred.
+        """ Loads a pre-trained model in to the architecture and sets the Bayesian parameters that need to be inferred
+        during training. 
+
+        Attributes:
+            bayesian_weights (dict): Bayesian parameters in the architecture.
+
+        Raises:
+            AttributeError: If the chosen `bayesian_idx` is not in the list of the allowed idxs. 
+
         """
         super(redBNN, self)._initialize_model(feature_extract=False, use_pretrained=True)
         allowed_idxs = list(get_blocks_dict(self.network, learnable_only=True, mode=self.reduction).keys())
@@ -29,7 +45,15 @@ class redBNN(baseNN):
         self.bayesian_weights = self._set_bayesian_weights(self.bayesian_idx)
 
     def _set_bayesian_weights(self, bayesian_idx):
+        """ Builds the dictionary of Bayesian paramaters in the architecture. 
 
+        Args: 
+            bayesian_idx (int): Index for the Bayesian layer or block in the architecture.
+        
+        Returns:
+            Bayesian weights dictionary.
+
+        """
         print("\nBayesian idx =", bayesian_idx)
         blocks_dict = get_blocks_dict(self.network, learnable_only=True, mode=self.reduction)
 
@@ -51,14 +75,20 @@ class redBNN(baseNN):
 
     def train(self, dataloaders, device, use_pretrained=True, is_inception=False, num_iters=2, 
               svi_iters=10, hmc_samples=100, hmc_warmup=100, eval_samples=10):
-        """
-        dataloaders: dictionary containing 'train' and 'val' dataloaders
-        device: 'cpu' or 'cuda' 
-        num_iters: number of training iterations for the baseNN
-        svi_iters:
-        hmc_samples:
-        hmc_warmup:
-        is_inception: flag for Inception v3 model
+        """ Freezes the deterministic parameters and infers the Bayesian paramaters using the chosen inference method.
+
+        Args:
+            dataloaders (dict): Dictionary containing training and validation torch dataloaders.
+            device (str): Device chosen for training.
+            num_iters (int): Number of iterations for fine-tuning the pre-trained network.
+            svi_iters (int): Number of iterations for Stochastic Variational Inference.
+            hmc_samples (int): Number of Hamiltonian Monte Carlo samples.
+            hmc_warmup (int): Number of Hamiltonian Monte Carlo warmup samples.
+            is_inception (bool): Special case for training torchvision inception network. Defaults to True.
+
+        Raises:
+            NotImplementedError: If training is not implemented for the chosen inference method.
+
         """
         basenet = baseNN(architecture=self.architecture, num_classes=self.num_classes)
         self._initialize_model()
@@ -89,10 +119,27 @@ class redBNN(baseNN):
             raise NotImplementedError
 
     def evaluate(self, dataloader, n_samples, device):
+        """ Evaluate `self.network` on test data.
+
+        Args:
+            dataloader (torch.dataloader): Test dataloader.
+            n_samples (int): Number of posterior samples drawn during the evaluation.
+            device (str): Device chosen for testing. 
+
+        Returns:
+            (float): Test accuracy.
+
+        """
         return super(redBNN, self).evaluate(dataloader=dataloader, device=device, n_samples=n_samples)
 
     def model(self, x_data, y_data):
+        """ Stochastic function that implements the generative process and is conditioned on the observations. 
 
+        Args:
+            x_data (torch.tensor): Observed data points.
+            y_data (torch.tensor): Labels of the observed data.
+
+        """
         if self.inference=="svi":
             return svi.model(redbnn=self, x_data=x_data, y_data=y_data)
 
@@ -103,12 +150,27 @@ class redBNN(baseNN):
             raise NotImplementedError
 
     def guide(self, x_data, y_data=None):
+        """ Variational distribution for SVI inference method.
 
+        Args:
+            x_data (torch.tensor): Input data points.
+            y_data (torch.tensor): Labels of the input data.
+
+        """
         if self.inference=="svi":
             return svi.guide(redbnn=self, x_data=x_data, y_data=y_data)
 
     def forward(self, inputs, n_samples=10, sample_idxs=None, expected_out=True, softmax=False):
+        """ Forward pass of the inputs through the network.
 
+        Args:
+            inputs (torch.tensor): Input images.
+            softmax (bool): If True computes the softmax of each output tensor.
+
+        Returns: 
+            (torch.Tensor): Output predictions
+
+        """
         if sample_idxs is  None:
             sample_idxs = list(range(n_samples))
         else:
@@ -128,17 +190,34 @@ class redBNN(baseNN):
         return nnf.softmax(preds, dim=-1) if softmax else preds
 
     def save(self, filename, savedir, hmc_samples=None):
+        """ Saves the learned parameters as torch.tensors on the CPU.
+
+        Args:
+            filename (str)
+            savedir (str)
+            hmc_samples (str): Number of samples drawn during HMC inference, needed for saving models trained with HMC.
+
+        """
         self.to("cpu")
         
         if self.inference=="svi":
             svi.save(self, savedir=savedir, filename=filename)
 
         elif self.inference=="hmc":
+            assert hmc_samples is not None
             hmc.save(self, savedir=savedir, filename=filename, hmc_samples=hmc_samples)
 
         print("\nSaving", os.path.join(savedir, filename))
 
     def load(self, filename, savedir, hmc_samples=None):
+        """ Loads the learned parameters.
+
+        Args:
+            filename (str)
+            savedir (str)
+            hmc_samples (str): Number of samples drawn during HMC inference, needed for loading models trained with HMC.
+
+        """
         basenet = baseNN(architecture=self.architecture, num_classes=self.num_classes)
         self._initialize_model()
 
@@ -146,13 +225,13 @@ class redBNN(baseNN):
             svi.load(self, savedir=savedir, filename=filename)
 
         elif self.inference=="hmc":
+            assert hmc_samples is not None
             hmc.load(self, savedir=savedir, filename=filename, hmc_samples=hmc_samples)
 
         print("\nLoading", os.path.join(savedir, filename))
 
     def to(self, device):
-        """
-        Send network to device.
+        """ Sends `self.network` to the chosen device.
         """
         self.network = self.network.to(device)
 
