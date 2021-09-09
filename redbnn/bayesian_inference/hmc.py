@@ -13,6 +13,7 @@ from pyro import poutine
 from pyro.infer.mcmc import MCMC, HMC, NUTS
 from pyro.distributions import Normal, Categorical
 from collections import OrderedDict
+
 from redbnn.utils.pickling import save_to_pickle, load_from_pickle
 
 

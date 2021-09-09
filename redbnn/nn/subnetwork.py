@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import pyro
 from pyro import poutine
 from pyro.distributions import Normal, Categorical
-from utils.networks import *
+from redbnn.utils.networks import *
 softplus = torch.nn.Softplus()
 
 class SubNetwork(nn.Module):
@@ -14,7 +14,7 @@ class SubNetwork(nn.Module):
     def __init__(self, architecture):
         super(SubNetwork, self).__init__()
         """
-        Args:
+        Parameters:
             architecture (str): Name of any torchvision architecture.            
 
         """
@@ -24,15 +24,11 @@ class SubNetwork(nn.Module):
         """ Build subnetwork architecture from start_layer_idx to end_layer_idx (both idxs included) 
         of the original model. 
 
-        Args:
+        Parameters:
             original_model (torchvision.models)
             reduction (str): Reduction method can be either `layers` or `blocks` depending on the desired structure.
             start_layer_idx (int): Index of the first layer in the subnetwork.
-            end_layer_idx (int): Index of the last layer in the subnetwork.
-
-        Returns:
-            self
-            
+            end_layer_idx (int): Index of the last layer in the subnetwork.            
         """
         if hasattr(original_model, 'inference'):
             self.inference = original_model.inference

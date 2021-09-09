@@ -15,11 +15,12 @@ from redbnn.utils.networks import get_blocks_dict
 
 
 class baseNN(nn.Module):
-    """ Deterministic Neural Network classifier. Used as the baseline model for reduced Bayesian Neural Network. """
+    """ Deterministic Neural Network classifier. Used as the baseline model for reduced Bayesian 
+    Neural Network (redBNN). """
 
     def __init__(self, architecture, num_classes):
         """
-        Args:
+        Parameters:
             architecture (str): Name of any torchvision architecture.            
             num_classes (int): Number of classes in the classification problem.
 
@@ -34,10 +35,10 @@ class baseNN(nn.Module):
         Only works for models with a fully connected last layer, otherwise code needs to be adapted (e.g. special 
         case for squeezenet below).
 
-        Args:
-            feature_extract (bool): If True only updates the parameters with requires_grad=True, otherwise 
+        Parameters:
+            feature_extract (bool): If True only updates the parameters with requires_grad=True, otherwise \
                                     updates all parameters.
-            use_pretrained (bool): If True loads a pre-trained model from torchvision library with the chosen 
+            use_pretrained (bool): If True loads a pre-trained model from torchvision library with the chosen \
                                    architecture.
 
         Attributes:
@@ -95,9 +96,9 @@ class baseNN(nn.Module):
     def _set_parameter_requires_grad(self, model, feature_extract):
         """ Sets requires_grad attribute of model parameters to False when we are feature extracting.
         
-        Args:
+        Parameters:
             model (torchvision.models): Torchvision model. 
-            feature_extract (bool): If True performs feature extraction and sets requires_grad=False for all 
+            feature_extract (bool): If True performs feature extraction and sets requires_grad=False for all \
                                     model parameters.
 
         """
@@ -108,9 +109,9 @@ class baseNN(nn.Module):
     def _set_params_updates(self, model, feature_extract): 
         """ Set the parameters to be optimized during training. 
 
-        Args:
+        Parameters:
             model (torchvision.models): Torchvision model.
-            feature_extract (bool): If True only updates the parameters with `requires_grad=True`, otherwise 
+            feature_extract (bool): If True only updates the parameters with `requires_grad=True`, otherwise \
                                     updates all parameters.
 
         """
@@ -139,13 +140,13 @@ class baseNN(nn.Module):
     def train(self, dataloaders, device, num_iters, feature_extract=True, use_pretrained=True, is_inception=False):
         """ Trains self.network with stochastic gradient descent, using Adam optimizer.
 
-        Args:
+        Parameters:
             dataloaders (dict): Dictionary containing training and validation torch dataloaders.
             device (str): Device chosen for training.
             num_iters (int): Number of training iterations.
-            feature_extract (bool): If True only updates the parameters with `requires_grad=True`, otherwise 
+            feature_extract (bool): If True only updates the parameters with `requires_grad=True`, otherwise \
                                     updates all parameters. Defaults to True.
-            use_pretrained (bool): If True loads a pre-trained model from torchvision library with the chosen 
+            use_pretrained (bool): If True loads a pre-trained model from torchvision library with the chosen \
                                    architecture. Defaults to True.
             is_inception (bool): Special case for training torchvision inception network. Defaults to True.
 
@@ -231,7 +232,7 @@ class baseNN(nn.Module):
     def evaluate(self, dataloader, device, *args, **kwargs):
         """ Evaluate `self.network` on test data.
 
-        Args:
+        Parameters:
             dataloader (torch.dataloader): Test dataloader.
             device (str): Device chosen for testing. 
             *args: Variable length argument list.
@@ -264,14 +265,14 @@ class baseNN(nn.Module):
     def get_activation(self, x, layer_idx):
         """ Get self.network activation corresponding to the chosen layer index.
 
-        Args:
+        Parameters:
             x (torch.tensor): Input image.
             layer_idx (int): Index of the chosen layer.
 
         Returns:
             (torch.tensor): Input activation at the chosen layer.
 
-        """     
+        """      
         if layer_idx==-1:
             return x
 
@@ -302,15 +303,19 @@ class baseNN(nn.Module):
 
     def to(self, device):
         """ Sends `self.network` to the chosen device.
+
+        Parameters:
+            device (str): Name of the chosen device.
+
         """
         self.network = self.network.to(torch.device(device))
 
     def save(self, filename, savedir):
         """ Saves the learned parameters as torch.tensors on the CPU.
 
-        Args:
-            filename (str)
-            savedir (str)        
+        Parameters:
+            filename (str): Filename.
+            savedir (str): Output directory.
 
         """
         filename += "_weights.pt"
@@ -322,10 +327,10 @@ class baseNN(nn.Module):
     def load(self, filename, savedir):
         """ Loads the learned parameters.
 
-        Args:
-            filename (str)
-            savedir (str)
-            
+        Parameters:
+            filename (str): Filename.
+            savedir (str): Output directory.
+
         """
         filename += "_weights.pt"
 
@@ -336,7 +341,7 @@ class baseNN(nn.Module):
     def forward(self, inputs, softmax=False):
         """ Forward pass of the inputs through `self.network`. 
 
-        Args:
+        Parameters:
             inputs (torch.tensor): Input images.
             softmax (bool): If True computes the softmax of each output tensor.
 
