@@ -3,3 +3,5 @@
 data/trained_models/
 *screenlog.0
 docs/_build/
+dist/
+MANIFEST
