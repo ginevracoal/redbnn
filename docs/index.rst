@@ -10,6 +10,13 @@ Reduced Bayesian Neural Networks are deterministic Neural Networks with a Bayesi
 
 This library is built upon pyro and torchvision: ``redbnn`` loads any pre-trained architecture from torchvision library and trains a deterministic Neural Network (``baseNN``) or a reduced Bayesian Neural Network (``redBNN``) using Stochastic Variational Inference (SVI) or Hamiltonian Monte Carlo (HMC) from pyro library.
 
+Install
+-------
+``pip install redbnn``
+
+Contents
+========
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
