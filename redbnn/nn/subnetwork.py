@@ -74,6 +74,12 @@ class SubNetwork(nn.Module):
         return self
 
     def update_weights(self, bayesian_network, bayesian_input, sample_idx):
+        """ Updates the weights in `bayesian_networks` using the weights from `bayesian_input`.
+
+        Parameters:
+            bayesian_network ():
+            bayesian_input ():
+        """
         pyro.set_rng_seed(sample_idx)
 
         if self.inference == "svi":

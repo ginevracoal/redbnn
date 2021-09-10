@@ -5,7 +5,6 @@ redBNN computes a MAP estimate and then performs Bayesian inference on a chosen 
 (--reduction=blocks). 
 """
 
-
 import torch
 from argparse import ArgumentParser
 
@@ -58,7 +57,7 @@ elif args.model=='redBNN':
     model.save(filename='redBNN_'+str(args.inference), savedir='data/trained_models/', hmc_samples=args.hmc_samples)
     model.evaluate(dataloaders['test'], device=args.device, n_samples=args.n_samples)
 
-    
+
 
 else:
     raise AttributeError
