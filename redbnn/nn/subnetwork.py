@@ -101,7 +101,6 @@ class SubNetwork(nn.Module):
         return self
 
     def forward(self, x, n_samples=None, sample_idxs=None, bayesian_network=None):
-
         n_samples = self.n_samples if hasattr(self, "n_samples") else n_samples
         sample_idxs = self.sample_idxs if hasattr(self, "sample_idxs") else sample_idxs
 
