@@ -15,7 +15,13 @@ from pyro.distributions import Normal, Categorical
 
 
 def model(redbnn, x_data, y_data):
+    """ Stochastic function that implements the generative process and is conditioned on the observations. 
 
+    Parameters:
+        x_data (torch.tensor): Observed data points.
+        y_data (torch.tensor): Labels of the observed data.
+
+    """
     priors = {}
     for key, value in redbnn.network.named_parameters():
         if key in redbnn.bayesian_weights.keys():
@@ -32,7 +38,13 @@ def model(redbnn, x_data, y_data):
         obs = pyro.sample("obs", Categorical(logits=out), obs=y_data)
 
 def guide(redbnn, x_data, y_data=None):
+    """ Variational distribution.
 
+    Parameters:
+        x_data (torch.tensor): Input data points.
+        y_data (torch.tensor, optional): Labels of the input data.
+
+    """
     dists = {}
     for key, value in redbnn.network.named_parameters():
 
@@ -48,7 +60,15 @@ def guide(redbnn, x_data, y_data=None):
     return out
 
 
-def train(redbnn, dataloaders, device, num_iters, lr=0.01, is_inception=False):
+def train(redbnn, dataloaders, device, num_iters, lr=0.01):
+    """ Freezes the deterministic parameters and infers the Bayesian paramaters using the chosen inference method.
+
+    Parameters:
+        dataloaders (dict): Dictionary containing training and validation torch dataloaders.
+        device (str): Device chosen for training.
+        num_iters (int): Number of iterations for Stochastic Variational Inference.
+        lr (float, optional): Learning rate for SVI.
+    """    
     print("\n == SVI ==")
 
     device = torch.device(device)
@@ -104,7 +124,19 @@ def train(redbnn, dataloaders, device, num_iters, lr=0.01, is_inception=False):
     return val_acc_history
 
 def forward(redbnn, inputs, n_samples, sample_idxs=None, softmax=True):
+    """ Forward pass of the inputs through the network using the chosen number of samples.
 
+    Parameters:
+        inputs (torch.tensor): Input images.
+        n_samples (int, optional): Number of samples drawn during the evaluation.
+        samples_idxs (list, optional): Random seeds used for drawing samples. If `samples_idxs` is None it is \
+                                        defined as the range of integers from 0 to the maximum number of samples.
+        softmax (bool, optional): If True computes the softmax of each output tensor.
+
+    Returns: 
+        (torch.Tensor): Output predictions
+
+    """
     old_state_dict = redbnn.network.state_dict()
 
     preds = []  
@@ -133,12 +165,26 @@ def forward(redbnn, inputs, n_samples, sample_idxs=None, softmax=True):
     return nnf.softmax(preds, dim=-1) if softmax else preds
 
 def save(redbnn, savedir, filename):
+    """ Saves the learned parameters on the CPU.
+
+    Parameters:
+        savedir (str): Output directory.
+        filename (str): Filename.
+
+    """    
     os.makedirs(savedir, exist_ok=True)
     torch.save(redbnn.network.state_dict(), os.path.join(savedir, filename+"_weights.pt"))
     param_store = pyro.get_param_store()
     param_store.save(os.path.join(savedir, filename+"_weights.pt"))
 
 def load(redbnn, savedir, filename):
+    """ Loads the learned parameters.
+
+    Parameters:
+        savedir (str): Output directory.
+        filename (str): Filename.
+
+    """
     saved_param_store = torch.load(os.path.join(savedir, filename+"_weights.pt"))
     param_store = pyro.get_param_store()
     param_store.load(os.path.join(savedir, filename+"_weights.pt"))
@@ -148,5 +194,10 @@ def load(redbnn, savedir, filename):
     return redbnn
 
 def to(device):
+    """ Sends pyro parameters to the chosen device.
+    
+    Parameters:
+        device (str): Name of the chosen device.
+    """    
     for k, v in pyro.get_param_store().items():
         pyro.get_param_store()[k] = v.to(device)

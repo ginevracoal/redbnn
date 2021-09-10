@@ -18,7 +18,13 @@ from redbnn.utils.pickling import save_to_pickle, load_from_pickle
 
 
 def model(redbnn, x_data, y_data):
+    """ Stochastic function that implements the generative process and is conditioned on the observations. 
 
+    Parameters:
+        x_data (torch.tensor): Observed data points.
+        y_data (torch.tensor): Labels of the observed data.
+
+    """
     priors = {}
     for key, value in redbnn.network.named_parameters():
         if key in redbnn.bayesian_weights.keys():
@@ -35,13 +41,13 @@ def model(redbnn, x_data, y_data):
         obs = pyro.sample("obs", Categorical(logits=out), obs=y_data)
 
 def train(redbnn, dataloaders, device, n_samples, warmup):
-    """ Freezes the deterministic parameters and infers the Bayesian paramaters using the chosen inference method.
+    """ Freezes the deterministic parameters and infers the Bayesian paramaters using Hamiltonian Monte Carlo.
 
         Parameters:
             dataloaders (dict): Dictionary containing training and validation torch dataloaders.
             device (str): Device chosen for training.
-            n_samples (int, optional): Number of Hamiltonian Monte Carlo samples.
-            warmup (int, optional): Number of Hamiltonian Monte Carlo warmup samples.
+            n_samples (int): Number of Hamiltonian Monte Carlo samples.
+            warmup (int): Number of Hamiltonian Monte Carlo warmup samples.
 
     """
     print("\n == HMC ==")
@@ -121,6 +127,16 @@ def forward(redbnn, inputs, n_samples, sample_idxs=None, softmax=True):
     return nnf.softmax(preds, dim=-1) if softmax else preds
     
 def save(redbnn, savedir, filename, hmc_samples):
+    """ Saves the learned parameters as torch.tensors on the CPU.
+
+    Parameters:
+        savedir (str): Output directory.
+        filename (str): Filename.
+        hmc_samples (str): Number of samples drawn during HMC inference, needed for saving models \
+                            trained with HMC.
+
+    """
+
     savedir=os.path.join(savedir, filename+"_weights")
     os.makedirs(savedir, exist_ok=True)
 
@@ -135,6 +151,15 @@ def save(redbnn, savedir, filename, hmc_samples):
         save_to_pickle(data=weights_dict, path=savedir, filename=filename+"_"+str(sample_idx))
 
 def load(redbnn, savedir, filename, hmc_samples):
+    """ Loads the learned parameters.
+
+    Parameters:
+        savedir (str): Output directory.
+        filename (str): Filename.
+        hmc_samples (str): Number of samples drawn during HMC inference, needed for loading models \
+                            trained with HMC.
+
+    """    
     savedir=os.path.join(savedir, filename+"_weights")
 
     posterior_samples=[]
@@ -153,5 +178,10 @@ def load(redbnn, savedir, filename, hmc_samples):
     redbnn.posterior_samples = posterior_samples
 
 def to(device):
+    """ Sends pyro parameters to the chosen device.
+    
+    Parameters:
+        device (str): Name of the chosen device.
+    """    
     for k, v in pyro.get_param_store().items():
         pyro.get_param_store()[k] = v.to(device)
