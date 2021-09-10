@@ -22,7 +22,7 @@ def load_from_pickle(path, filename):
     return data
     
 def unpickle(file):
-    """ Load byte data from file"""
+    """ Load byte data from file """
     with open(file, 'rb') as f:
         data = pkl.load(f, encoding='latin-1')
     return data
