@@ -6,9 +6,9 @@
 Welcome to redbnn's documentation!
 ==================================
 
-Reduced Bayesian Neural Networks are deterministic Neural Networks with a Bayesian subset of weights. `redBNN` class computes a MAP estimate of the entire NN and then performs Bayesian inference on a chosen layer (`--reduction=layers`) or block (`--reduction=blocks`).
+Reduced Bayesian Neural Networks are deterministic Neural Networks with a Bayesian subset of weights. ``redBNN`` class computes a MAP estimate of the entire NN and then performs Bayesian inference on a chosen layer (``--reduction=layers``) or block (``--reduction=blocks``).
 
-This library is built upon pyro and torchvision: `redbnn` loads any pre-trained architecture from torchvision library and trains a deterministic Neural Network (`baseNN`) or a reduced Bayesian Neural Network (`redBNN`) using Stochastic Variational Inference (SVI) or Hamiltonian Monte Carlo (HMC) from pyro library.
+This library is built upon pyro and torchvision: ``redbnn`` loads any pre-trained architecture from torchvision library and trains a deterministic Neural Network (``baseNN``) or a reduced Bayesian Neural Network (``redBNN``) using Stochastic Variational Inference (SVI) or Hamiltonian Monte Carlo (HMC) from pyro library.
 
 .. toctree::
    :maxdepth: 2
