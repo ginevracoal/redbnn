@@ -34,7 +34,16 @@ def model(redbnn, x_data, y_data):
         out = lifted_module(x_data)
         obs = pyro.sample("obs", Categorical(logits=out), obs=y_data)
 
-def train(redbnn, dataloaders, device, n_samples, warmup, is_inception=False):
+def train(redbnn, dataloaders, device, n_samples, warmup):
+    """ Freezes the deterministic parameters and infers the Bayesian paramaters using the chosen inference method.
+
+        Parameters:
+            dataloaders (dict): Dictionary containing training and validation torch dataloaders.
+            device (str): Device chosen for training.
+            n_samples (int, optional): Number of Hamiltonian Monte Carlo samples.
+            warmup (int, optional): Number of Hamiltonian Monte Carlo warmup samples.
+
+    """
     print("\n == HMC ==")
     
     device = torch.device(device)
@@ -86,7 +95,19 @@ def train(redbnn, dataloaders, device, n_samples, warmup, is_inception=False):
     return posterior_samples
 
 def forward(redbnn, inputs, n_samples, sample_idxs=None, softmax=True):
+    """ Forward pass of the inputs through the network using the chosen number of samples.
 
+    Parameters:
+        inputs (torch.tensor): Input images.
+        n_samples (int, optional): Number of samples drawn during the evaluation.
+        samples_idxs (list, optional): Random seeds used for drawing samples. If `samples_idxs` is None it is \
+                                        defined as the range of integers from 0 to the maximum number of samples.
+        softmax (bool, optional): If True computes the softmax of each output tensor.
+
+    Returns: 
+        (torch.Tensor): Output predictions
+
+    """
     if n_samples>len(redbnn.posterior_samples):
         raise ValueError("Too many samples. Max available samples =", len(redbnn.posterior_samples))
 

@@ -1,7 +1,7 @@
 # redbnn
 
 <div align="center">
-	<img src="docs/_static/new_logo.png" width="200">
+	<img src="docs/_static/logo1.png" width="200">
 </div>
 
 Reduced Bayesian Neural Networks are Deterministic Neural Networks with a Bayesian subset of weights. `redBNN` class computes a MAP estimate of the entire NN and then performs Bayesian inference on a chosen layer (`--reduction=layers`) or block (`--reduction=blocks`). 
