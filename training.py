@@ -24,7 +24,7 @@ parser.add_argument("--model", type=str, default="redBNN", help="Choose the mode
 parser.add_argument("--n_inputs", type=int, default=None, help="Number of images. None loads all the available ones.")
 parser.add_argument("--n_iters", type=int, default=2, help="Number of training iterations for baseNN.")
 parser.add_argument("--inference", type=str, default="svi", help="Inference method: 'svi', 'hmc'.")
-parser.add_argument("--reduction", type=str, default="blocks", help="Choose 'blocks' or 'layers' mode.")
+parser.add_argument("--reduction", type=str, default="layers", help="Choose 'blocks' or 'layers' mode.")
 parser.add_argument("--bayesian_idx", type=eval, default=4, help="Idx for Bayesian block or layer.")
 parser.add_argument("--n_samples", type=int, default=10, help="Number of posterior samples for testing.")
 parser.add_argument("--svi_iters", type=int, default=5, help="Number of iterations for SVI.")
@@ -57,6 +57,8 @@ elif args.model=='redBNN':
                 hmc_samples=args.hmc_samples, hmc_warmup=args.hmc_warmup)
     model.save(filename='redBNN_'+str(args.inference), savedir='data/trained_models/', hmc_samples=args.hmc_samples)
     model.evaluate(dataloaders['test'], device=args.device, n_samples=args.n_samples)
+
+    
 
 else:
     raise AttributeError
