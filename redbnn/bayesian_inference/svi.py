@@ -61,7 +61,7 @@ def guide(redbnn, x_data, y_data=None):
 
 
 def train(redbnn, dataloaders, device, num_iters, is_inception=False, lr=0.01):
-    """ Freezes the deterministic parameters and infers the Bayesian paramaters using the chosen inference method.
+    """ Freezes the deterministic parameters and infers the Bayesian paramaters using SVI.
 
     Parameters:
         dataloaders (dict): Dictionary containing training and validation torch dataloaders.
