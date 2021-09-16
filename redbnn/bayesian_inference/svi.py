@@ -60,7 +60,7 @@ def guide(redbnn, x_data, y_data=None):
     return out
 
 
-def train(redbnn, dataloaders, device, num_iters, lr=0.01):
+def train(redbnn, dataloaders, device, num_iters, is_inception=False, lr=0.01):
     """ Freezes the deterministic parameters and infers the Bayesian paramaters using the chosen inference method.
 
     Parameters:

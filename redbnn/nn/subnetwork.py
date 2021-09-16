@@ -28,7 +28,8 @@ class SubNetwork(nn.Module):
             original_model (torchvision.models)
             reduction (str): Reduction method can be either `layers` or `blocks` depending on the desired structure.
             start_layer_idx (int): Index of the first layer in the subnetwork.
-            end_layer_idx (int): Index of the last layer in the subnetwork.            
+            end_layer_idx (int): Index of the last layer in the subnetwork. 
+                       
         """
         if hasattr(original_model, 'inference'):
             self.inference = original_model.inference
@@ -77,8 +78,10 @@ class SubNetwork(nn.Module):
         """ Updates the weights in `bayesian_networks` using the weights from `bayesian_input`.
 
         Parameters:
-            bayesian_network ():
-            bayesian_input ():
+            bayesian_network (redbnn.nn.reduced.redBNN): Instance of redBNN class.
+            bayesian_input (torch.tensor): Input images for the evaluation of `bayesian_network`.
+            sample_idx (int): Random seed used for drawing a Bayesian sample. 
+
         """
         pyro.set_rng_seed(sample_idx)
 
@@ -101,6 +104,21 @@ class SubNetwork(nn.Module):
         return self
 
     def forward(self, x, n_samples=None, sample_idxs=None, bayesian_network=None):
+        """ Forward pass of the inputs through the network using the chosen number of samples and samples indexes.
+        Works for both deterministic (redbnn.nn.base.baseNN) and Bayesian (redbnn.nn.base.redBNN) networks. 
+
+        Parameters:
+            x (torch.tensor): Input images.
+            n_samples (int, optional): Number of samples drawn during the evaluation.
+            samples_idxs (list, optional): Random seeds used for drawing samples. If `samples_idxs` is None it is \
+                                            defined as the range of integers from 0 to the maximum number of samples.
+            softmax (bool, optional): If True computes the softmax of each output tensor.
+            bayesian_network (redbnn.nn.reduced.redBNN, optional): Instance of redBNN class.
+
+        Returns: 
+            (torch.Tensor): Output predictions.
+
+        """
         n_samples = self.n_samples if hasattr(self, "n_samples") else n_samples
         sample_idxs = self.sample_idxs if hasattr(self, "sample_idxs") else sample_idxs
 
@@ -124,6 +142,15 @@ class SubNetwork(nn.Module):
         return out
 
     def _deterministic_forward(self, x):
+        """ Forward pass of the inputs through the deterministic network.
+
+        Parameters:
+            x (torch.tensor): Input images.
+
+        Returns: 
+            (torch.Tensor): Output predictions.
+
+        """
 
         if self.architecture=="alexnet":
             x = self.features(x)

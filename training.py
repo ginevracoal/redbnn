@@ -29,7 +29,7 @@ parser.add_argument("--n_samples", type=int, default=10, help="Number of posteri
 parser.add_argument("--svi_iters", type=int, default=5, help="Number of iterations for SVI.")
 parser.add_argument("--hmc_samples", type=int, default=50, help="Number of samples for HMC.")
 parser.add_argument("--hmc_warmup", type=int, default=100, help="Number of warmup steps for HMC.")
-parser.add_argument("--device", type=str, default="cuda", help="Choose 'cuda' or 'cpu'.")
+parser.add_argument("--device", type=str, default="cpu", help="Choose 'cuda' or 'cpu'.")
 args = parser.parse_args()
 
 dataloaders, num_classes = load_data(dataset_name=args.dataset, 
