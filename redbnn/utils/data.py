@@ -23,7 +23,18 @@ class TransformDataset(Dataset):
         return len(self.subset)
 
 def transform_data(train_set, val_set, test_set, img_size):
+    """ Data preprocessing on training, validation and test sets. 
 
+    Parameters: 
+        train_set (torch.utils.data.dataset.Subset): Training set.
+        val_set (torch.utils.data.dataset.Subset): Validation set.
+        test_set (torch.utils.data.dataset.Subset): Test set.
+        img_size (int): Size of a flat image.
+
+    Returns:
+        (torch.utils.data.dataset.Subset list): List of transformed training, validation and test sets. 
+
+    """
     set_seed(0)
 
     stats = [0.,0.,0.],[1.,1.,1.]
@@ -53,9 +64,19 @@ def transform_data(train_set, val_set, test_set, img_size):
 
     return train_set, val_set, test_set
 
-def load_data(dataset_name, data_dir, phases=['train','val','test'], batch_size=64, subset_size=None, num_workers=0):
-    """
-    Build a dictionary containing training, validation and test dataloaders from the chosen dataset.
+def load_data(dataset_name, data_dir, phases=['train','val','test'], batch_size=64, subset_size=None):
+    """ Builds a dictionary containing training, validation and test dataloaders from the chosen dataset.
+
+    Parameters:
+        dataset_name (str): Name of the chosen dataset.
+        data_dir (str): Data path.
+        phases (str list, optional): List of desired data phases.
+        batch_size (int, optional): Batch size.
+        subset_size (int, optional): Subset size. If None loads all the available data for the chosen phases. 
+
+    Returns:
+        (dict): Dictionary containing dataloaders for the chosen dataset and phases.
+        (int): Number of classes.
     """
     set_seed(0)
     
