@@ -97,8 +97,15 @@ def train(redbnn, dataloaders, device, num_iters, is_inception, lr=0.01):
             for inputs, labels in tqdm(dataloaders[phase]):
                 inputs, labels  = inputs.to(device), labels.to(device)
 
-                loss = svi.step(x_data=inputs, y_data=labels)
-                out = redbnn.forward(inputs, n_samples=10)
+                if is_inception and phase == 'train':
+                    outputs, aux_outputs = redbnn.forward(inputs)
+                    loss1 = svi.step(x_data=outputs, y_data=labels) 
+                    loss2 = svi.step(x_data=aux_outputs, y_data=labels)
+                    loss = loss1 + 0.4*loss2
+                else:
+                    loss = svi.step(x_data=inputs, y_data=labels)
+
+                out = redbnn.forward(inputs)
                 preds = out.argmax(dim=-1)
                     
                 running_loss += loss * inputs.size(0)

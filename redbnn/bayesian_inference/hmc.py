@@ -40,7 +40,7 @@ def model(redbnn, x_data, y_data):
         out = lifted_module(x_data)
         obs = pyro.sample("obs", Categorical(logits=out), obs=y_data)
 
-def train(redbnn, dataloaders, device, n_samples, warmup):
+def train(redbnn, dataloaders, device, n_samples, warmup, is_inception):
     """ Freezes the deterministic parameters and infers the Bayesian paramaters using Hamiltonian Monte Carlo.
 
         Parameters:
@@ -51,6 +51,9 @@ def train(redbnn, dataloaders, device, n_samples, warmup):
 
     """
     print("\n == HMC ==")
+
+    if is_inception:
+        raise NotImplementedError
     
     device = torch.device(device)
     redbnn.to(device)
