@@ -103,13 +103,11 @@ class redBNN(baseNN):
 
         self.network = basenet.network
 
-        ### new
         for key, param in self.network.named_parameters():
             if key in self.bayesian_weights.keys():
                 param.requires_grad = True
             else:
                 param.requires_grad = False
-        ###########
 
         if self.inference=="svi":
             svi.train(redbnn=self, dataloaders=dataloaders,
@@ -242,5 +240,4 @@ class redBNN(baseNN):
             device (str): Name of the chosen device.
         """
         self.network = self.network.to(device)
-
 

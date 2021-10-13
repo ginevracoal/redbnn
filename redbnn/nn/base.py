@@ -13,6 +13,7 @@ from torchvision import models
 from redbnn.utils.seeding import set_seed
 from redbnn.utils.networks import get_blocks_dict
 
+DEBUG=False
 
 class baseNN(nn.Module):
     """ Deterministic Neural Network classifier. Used as the baseline model for reduced Bayesian 
@@ -116,7 +117,9 @@ class baseNN(nn.Module):
 
         """
         params_to_update = model.parameters()
-        print("\nParams to learn:")
+
+        if DEBUG:
+            print("\nParams to learn:")
 
         count = 0
         if feature_extract:
@@ -124,13 +127,16 @@ class baseNN(nn.Module):
             for name,param in model.named_parameters():
                 if param.requires_grad == True:
                     params_to_update.append(param)
-                    print("\t",name)
                     count += param.numel()
+                    if DEBUG:
+                        print("\t",name)
+  
         else:
             for name,param in model.named_parameters():
                 if param.requires_grad == True:
-                    print("\t",name)
                     count += param.numel()
+                    if DEBUG:
+                        print("\t",name)
                 
         print(f"\nTotal n. of params = {count}")    
         n_learnable_layers = len(get_blocks_dict(self, mode="layers", learnable_only=True))
@@ -349,7 +355,6 @@ class baseNN(nn.Module):
             (torch.tensor): Output predictions.
 
         """
-        set_seed(0)
         preds = self.network.forward(inputs)
         return nnf.softmax(preds, dim=-1) if softmax else preds
 
