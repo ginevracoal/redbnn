@@ -11,3 +11,5 @@ This library is built upon `pyro` and `torchvision`: `redbnn` loads any pre-trai
 An example of training with `baseNN` or `redBNN` is provided by the script `training.py`.
 
 **Install**: `pip install redbnn`
+
+**Documentation**: https://redbnn.readthedocs.io/en/latest/
